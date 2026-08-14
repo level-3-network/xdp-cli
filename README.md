@@ -16,15 +16,15 @@ The packages you need to install are the following:
  - libelf
  - bpftool
 
-Run the `compile.sh` script and wait for it to finish
+Run the `compile.sh` script and wait for it to finish.
 
 # Executing
 
 Run the compiled program as sudo, below are a list of application arguments (some are required):
- - --in-interface - IN interface to attach XDP program to
- - --out-interface - OUT interface to attach XDP program to
+ - --in-interface - IN interface to attach XDP program to.
+ - --out-interface - OUT interface to attach XDP program to.
 
-Copy and paste the `command_list.txt` file into the folder where the program is located
+Copy and paste the `command_list.txt` file into the folder where the program is located.
 
 # Features
 
@@ -33,4 +33,4 @@ Copy and paste the `command_list.txt` file into the folder where the program is 
 
 # Notes
 
-This is program is still in development (alpha stage), it is not fully tested, if you find any bugs please contact me
+This is program is still in development (alpha stage), it is not fully 100% tested (especially on IPv6 networks), if you find any bugs please contact me, or submit an issue.
