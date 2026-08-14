@@ -7,7 +7,7 @@
 # Compiling from source
 
 The packages you need to install are the following:
- - C/C++ Compilers
+ - C/C++ Compilers (mainly GCC and G++)
  - Clang
  - LLVM
  - CMake (minimum 4.4.1 required)
