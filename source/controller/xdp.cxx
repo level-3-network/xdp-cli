@@ -56,6 +56,17 @@ bool XDPController::initialize(const char* in_interface, const char* out_interfa
         return false;
     }
 
+    this->data_plane_bpf_skeleton_->bss->in_if_index = this->in_if_index_;
+
+    const int tx_port_map_fd = bpf_map__fd(this->data_plane_bpf_skeleton_->maps.tx_port_map);
+
+    if (bpf_map_update_elem(tx_port_map_fd, &this->in_if_index_, &this->out_if_index_, BPF_ANY) < 0 || bpf_map_update_elem(tx_port_map_fd, &this->out_if_index_, &this->in_if_index_, BPF_ANY) < 0)
+    {
+        std::cout << SDK_COMMON_CONSOLE_TEXT_BOLD << SDK_COMMON_CONSOLE_TEXT_RED << "Failed to update TX port map" << SDK_COMMON_CONSOLE_TEXT_DEFAULT << std::endl;
+
+        return false;
+    }
+
     std::cout << SDK_COMMON_CONSOLE_TEXT_BOLD << SDK_COMMON_CONSOLE_TEXT_GREEN << "eBPF bytecode verified and loaded successfully" << SDK_COMMON_CONSOLE_TEXT_DEFAULT << std::endl;
 
     this->link_1_ = bpf_program__attach_xdp(this->data_plane_bpf_skeleton_->progs.xdp_main, this->in_if_index_);
@@ -140,6 +151,46 @@ bool XDPController::reload_command_list_file()
 
 void XDPController::forward_command_parser_initialize()
 {
+    command_parser_controller->register_command("/tx_port_redirect_map", {"<true|false>"}, [] (const std::vector<std::string> arguments)
+    {
+        if (arguments.size() == 1)
+        {
+            if (arguments.at(0) == "true")
+            {
+                instance_->data_plane_bpf_skeleton_->bss->tx_port_redirect_map = 1;
+
+                std::cout << SDK_COMMON_CONSOLE_TEXT_BOLD << SDK_COMMON_CONSOLE_TEXT_GREEN << "Now using TX port map to redirect interfaces" << SDK_COMMON_CONSOLE_TEXT_DEFAULT << std::endl;
+            }
+
+            else if (arguments.at(0) == "false")
+            {
+                instance_->data_plane_bpf_skeleton_->bss->tx_port_redirect_map = 0;
+
+                std::cout << SDK_COMMON_CONSOLE_TEXT_BOLD << SDK_COMMON_CONSOLE_TEXT_GREEN << "Now passing packets to kernel [XDP_PASS]" << SDK_COMMON_CONSOLE_TEXT_DEFAULT << std::endl;
+            }
+        }
+    });
+
+    command_parser_controller->register_command("/ip_address_key_reverse_lookup", {"<true|false>"}, [] (const std::vector<std::string> arguments)
+    {
+        if (arguments.size() == 1)
+        {
+            if (arguments.at(0) == "true")
+            {
+                instance_->data_plane_bpf_skeleton_->bss->ip_address_key_reverse_lookup = 1;
+
+                std::cout << SDK_COMMON_CONSOLE_TEXT_BOLD << SDK_COMMON_CONSOLE_TEXT_GREEN << "Reversed IP address key lookup" << SDK_COMMON_CONSOLE_TEXT_DEFAULT << std::endl;
+            }
+
+            else if (arguments.at(0) == "false")
+            {
+                instance_->data_plane_bpf_skeleton_->bss->ip_address_key_reverse_lookup = 0;
+
+                std::cout << SDK_COMMON_CONSOLE_TEXT_BOLD << SDK_COMMON_CONSOLE_TEXT_GREEN << "Reversed IP address key lookup" << SDK_COMMON_CONSOLE_TEXT_DEFAULT << std::endl;
+            }
+        }
+    });
+
     command_parser_controller->register_command("/blacklist", {"<enable|disable> <ipv4|ipv6> <ip address> <prefix length>"}, [] (const std::vector<std::string> arguments)
     {
         if (arguments.size() == 4)
@@ -200,34 +251,34 @@ void XDPController::forward_command_parser_initialize()
         }
     });
 
-    command_parser_controller->register_command("/traffic_shaper", {"<update> <ipv4|ipv6> <ip address> <prefix length> <rate mbps> <burst mb>"}, [] (const std::vector<std::string> arguments)
+    command_parser_controller->register_command("/traffic_shaper", {"<update> <ipv4|ipv6> <ip address> <prefix length> <rate mbps> <burst mb> <allowance mb>"}, [] (const std::vector<std::string> arguments)
     {
-        if (arguments.size() == 6)
+        if (arguments.size() == 7)
         {
             if (arguments.at(0) == "update")
             {
                 if (arguments.at(1) == "ipv4")
                 {
-                    if (!sdk_common->is_numeric_string(arguments.at(3)) || !sdk_common->is_numeric_string(arguments.at(4)) || !sdk_common->is_numeric_string(arguments.at(5)))
+                    if (!sdk_common->is_numeric_string(arguments.at(3)) || !sdk_common->is_numeric_string(arguments.at(4)) || !sdk_common->is_numeric_string(arguments.at(5)) || !sdk_common->is_numeric_string(arguments.at(6)))
                     {
                         std::cout << SDK_COMMON_CONSOLE_TEXT_BOLD << SDK_COMMON_CONSOLE_TEXT_RED << "Invalid command argument" << SDK_COMMON_CONSOLE_TEXT_DEFAULT << std::endl;
 
                         return;
                     }
 
-                    instance_->update_traffic_shaper_ipv4_address(arguments.at(2).c_str(), std::stoi(arguments.at(3)), std::stoull(arguments.at(4)), std::stoull(arguments.at(5)));
+                    instance_->update_traffic_shaper_ipv4_address(arguments.at(2).c_str(), std::stoi(arguments.at(3)), std::stoull(arguments.at(4)), std::stoull(arguments.at(5)), std::stoull(arguments.at(6)));
                 }
 
                 else if (arguments.at(1) == "ipv6")
                 {
-                    if (!sdk_common->is_numeric_string(arguments.at(3)) || !sdk_common->is_numeric_string(arguments.at(4)) || !sdk_common->is_numeric_string(arguments.at(5)))
+                    if (!sdk_common->is_numeric_string(arguments.at(3)) || !sdk_common->is_numeric_string(arguments.at(4)) || !sdk_common->is_numeric_string(arguments.at(5)) || !sdk_common->is_numeric_string(arguments.at(6)))
                     {
                         std::cout << SDK_COMMON_CONSOLE_TEXT_BOLD << SDK_COMMON_CONSOLE_TEXT_RED << "Invalid command argument" << SDK_COMMON_CONSOLE_TEXT_DEFAULT << std::endl;
 
                         return;
                     }
 
-                    instance_->update_traffic_shaper_ipv6_address(arguments.at(2).c_str(), std::stoi(arguments.at(3)), std::stoull(arguments.at(4)), std::stoull(arguments.at(5)));
+                    instance_->update_traffic_shaper_ipv6_address(arguments.at(2).c_str(), std::stoi(arguments.at(3)), std::stoull(arguments.at(4)), std::stoull(arguments.at(5)), std::stoull(arguments.at(6)));
                 }
             }
         }
@@ -263,7 +314,7 @@ bool XDPController::update_blacklist_ipv4_address(const char* ip_address, const 
 
     if (bpf_map_update_elem(map_fd, &key, &value, BPF_ANY) < 0)
     {
-        std::cout << SDK_COMMON_CONSOLE_TEXT_BOLD << SDK_COMMON_CONSOLE_TEXT_RED << "Failed to update blacklist IPv4 address" << SDK_COMMON_CONSOLE_TEXT_DEFAULT << std::endl;
+        std::cout << SDK_COMMON_CONSOLE_TEXT_BOLD << SDK_COMMON_CONSOLE_TEXT_RED << "Failed to update blacklist IPv4 address into BPF map" << SDK_COMMON_CONSOLE_TEXT_DEFAULT << std::endl;
 
         return false;
     }
@@ -290,7 +341,7 @@ bool XDPController::update_blacklist_ipv6_address(const char* ip_address, const 
 
     if (bpf_map_update_elem(map_fd, &key, &value, BPF_ANY) < 0)
     {
-        std::cout << SDK_COMMON_CONSOLE_TEXT_BOLD << SDK_COMMON_CONSOLE_TEXT_RED << "Failed to insert blacklist IPv6 address" << SDK_COMMON_CONSOLE_TEXT_DEFAULT << std::endl;
+        std::cout << SDK_COMMON_CONSOLE_TEXT_BOLD << SDK_COMMON_CONSOLE_TEXT_RED << "Failed to update blacklist IPv6 address into BPF map" << SDK_COMMON_CONSOLE_TEXT_DEFAULT << std::endl;
 
         return false;
     }
@@ -315,7 +366,7 @@ TokenBucket XDPController::compute_token_bucket(const uint64_t rate_mbps, const 
     return token_bucket;
 }
 
-bool XDPController::update_traffic_shaper_ipv4_address(const char* ip_address, const unsigned int prefix_length, const uint64_t rate_mbps, const uint64_t burst_mb)
+bool XDPController::update_traffic_shaper_ipv4_address(const char* ip_address, const unsigned int prefix_length, const uint64_t rate_mbps, const uint64_t burst_mb, const uint64_t allowance_mb)
 {
     struct LPMTrieKeyIPv4 key = {};
 
@@ -332,9 +383,11 @@ bool XDPController::update_traffic_shaper_ipv4_address(const char* ip_address, c
 
     struct TokenBucket token_bucket = this->compute_token_bucket(rate_mbps, burst_mb);
 
+    token_bucket.allowance = allowance_mb * 1048576;
+
     if (bpf_map_update_elem(map_fd, &key, &token_bucket, BPF_ANY))
     {
-        std::cout << SDK_COMMON_CONSOLE_TEXT_BOLD << SDK_COMMON_CONSOLE_TEXT_RED << "Failed to update traffic shaper IPv4 address" << SDK_COMMON_CONSOLE_TEXT_DEFAULT << std::endl;
+        std::cout << SDK_COMMON_CONSOLE_TEXT_BOLD << SDK_COMMON_CONSOLE_TEXT_RED << "Failed to update traffic shaper IPv4 address BPF map" << SDK_COMMON_CONSOLE_TEXT_DEFAULT << std::endl;
 
         return false;
     }
@@ -342,7 +395,7 @@ bool XDPController::update_traffic_shaper_ipv4_address(const char* ip_address, c
     return true;
 }
 
-bool XDPController::update_traffic_shaper_ipv6_address(const char* ip_address, const unsigned int prefix_length, const uint64_t rate_mbps, const uint64_t burst_mb)
+bool XDPController::update_traffic_shaper_ipv6_address(const char* ip_address, const unsigned int prefix_length, const uint64_t rate_mbps, const uint64_t burst_mb, const uint64_t allowance_mb)
 {
     struct LPMTrieKeyIPv6 key = {};
 
@@ -359,9 +412,11 @@ bool XDPController::update_traffic_shaper_ipv6_address(const char* ip_address, c
 
     struct TokenBucket token_bucket = this->compute_token_bucket(rate_mbps, burst_mb);
 
+    token_bucket.allowance = allowance_mb * 1048576;
+
     if (bpf_map_update_elem(map_fd, &key, &token_bucket, BPF_ANY))
     {
-        std::cout << SDK_COMMON_CONSOLE_TEXT_BOLD << SDK_COMMON_CONSOLE_TEXT_RED << "Failed to update traffic shaper IPv6 address" << SDK_COMMON_CONSOLE_TEXT_DEFAULT << std::endl;
+        std::cout << SDK_COMMON_CONSOLE_TEXT_BOLD << SDK_COMMON_CONSOLE_TEXT_RED << "Failed to update traffic shaper IPv6 address BPF map" << SDK_COMMON_CONSOLE_TEXT_DEFAULT << std::endl;
 
         return false;
     }

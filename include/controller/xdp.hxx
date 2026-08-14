@@ -64,6 +64,6 @@ public:
 
     TokenBucket compute_token_bucket(const uint64_t rate_mbps, const uint64_t burst_mb);
 
-    bool update_traffic_shaper_ipv4_address(const char* ip_address, const unsigned int prefix_length, const uint64_t rate_mbps, const uint64_t burst_mb);
-    bool update_traffic_shaper_ipv6_address(const char* ip_address, const unsigned int prefix_length, const uint64_t rate_mbps, const uint64_t burst_mb);
+    bool update_traffic_shaper_ipv4_address(const char* ip_address, const unsigned int prefix_length, const uint64_t rate_mbps, const uint64_t burst_mb, const uint64_t allowance_mb);
+    bool update_traffic_shaper_ipv6_address(const char* ip_address, const unsigned int prefix_length, const uint64_t rate_mbps, const uint64_t burst_mb, const uint64_t allowance_mb);
 };

@@ -36,6 +36,12 @@ struct TokenBucket
     __u64 tokens;
 
     __u64 last_updated;
-};
+
+    __u64 allowance;
+
+    __u64 padding_1;
+    __u64 padding_2;
+    __u64 padding_3;
+} __attribute__((packed));
 
 #endif

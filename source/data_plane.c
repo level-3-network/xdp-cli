@@ -5,6 +5,11 @@
 #include <bpf/bpf_helpers.h>
 #include <bpf/bpf_endian.h>
 
+__u32 in_if_index;
+
+__u8 tx_port_redirect_map;
+__u8 ip_address_key_reverse_lookup;
+
 struct PacketContext
 {
     __u64 packet_length;
@@ -22,6 +27,14 @@ struct PacketContext
 
     void* data_end;
 };
+
+struct
+{
+    __uint(type, BPF_MAP_TYPE_DEVMAP);
+    __uint(max_entries, 64);
+    __type(key, __u32);
+    __type(value, __u32);
+} tx_port_map SEC(".maps");
 
 struct
 {
@@ -147,7 +160,7 @@ static __always_inline int parse_packet(struct xdp_md* ctx, struct PacketContext
     return 1;
 }
 
-static __always_inline int check_and_consume_tokens(struct TokenBucket* token_bucket, __u32 packet_length)
+static __always_inline int check_and_consume_tokens(struct TokenBucket* token_bucket, __u64 packet_length)
 {
     __u64 now = bpf_ktime_get_ns();
 
@@ -162,6 +175,12 @@ static __always_inline int check_and_consume_tokens(struct TokenBucket* token_bu
         elapsed = 0;
     }
 
+    if (token_bucket->allowance < packet_length) {
+        return 1;
+    }
+
+    token_bucket->allowance -= packet_length;
+
     token_bucket->tokens += elapsed;
 
     if (token_bucket->tokens > token_bucket->max_burst) {
@@ -170,7 +189,7 @@ static __always_inline int check_and_consume_tokens(struct TokenBucket* token_bu
 
     token_bucket->last_updated = now;
 
-    __u64 token_cost = (__u64)packet_length * token_bucket->nanosecond_per_byte;
+    __u64 token_cost = packet_length * token_bucket->nanosecond_per_byte;
 
     if (token_bucket->tokens >= token_cost)
     {
@@ -182,13 +201,33 @@ static __always_inline int check_and_consume_tokens(struct TokenBucket* token_bu
     return 1;
 }
 
-static __always_inline int process_blacklisted_ipv4_addresses(struct PacketContext* packet_ctx)
+static __always_inline int process_blacklisted_ipv4_addresses(struct PacketContext* packet_ctx, __u32* ingress_ifindex)
 {
     struct LPMTrieKeyIPv4 key = {};
 
     key.prefix_length = 32;
 
-    key.ip_address = packet_ctx->ipv4_header->saddr;
+    if (*ingress_ifindex == in_if_index)
+    {
+        if (ip_address_key_reverse_lookup == 1) {
+            key.ip_address = packet_ctx->ipv4_header->saddr;
+        }
+
+        else {
+            key.ip_address = packet_ctx->ipv4_header->daddr;
+        }        
+    }
+
+    else
+    {
+        if (ip_address_key_reverse_lookup == 1) {
+            key.ip_address = packet_ctx->ipv4_header->daddr;
+        }
+
+        else {
+            key.ip_address = packet_ctx->ipv4_header->saddr;
+        }        
+    }
 
     __u32* return_value = bpf_map_lookup_elem(&blacklist_ipv4_addresses_map, &key);
 
@@ -199,13 +238,33 @@ static __always_inline int process_blacklisted_ipv4_addresses(struct PacketConte
     return 0;
 }
 
-static __always_inline int process_blacklisted_ipv6_addresses(struct PacketContext* packet_ctx)
+static __always_inline int process_blacklisted_ipv6_addresses(struct PacketContext* packet_ctx, __u32* ingress_ifindex)
 {
     struct LPMTrieKeyIPv6 key = {};
 
     key.prefix_length = 128;
 
-    __builtin_memcpy(&key.ip_address, &packet_ctx->ipv6_header->saddr, sizeof(struct in6_addr));
+    if (*ingress_ifindex == in_if_index)
+    {
+        if (ip_address_key_reverse_lookup == 1) {
+            __builtin_memcpy(&key.ip_address, &packet_ctx->ipv6_header->saddr, sizeof(struct in6_addr));
+        }
+
+        else {
+            __builtin_memcpy(&key.ip_address, &packet_ctx->ipv6_header->daddr, sizeof(struct in6_addr));
+        }
+    }
+
+    else
+    {
+        if (ip_address_key_reverse_lookup == 1) {
+            __builtin_memcpy(&key.ip_address, &packet_ctx->ipv6_header->daddr, sizeof(struct in6_addr));
+        }
+
+        else {
+            __builtin_memcpy(&key.ip_address, &packet_ctx->ipv6_header->saddr, sizeof(struct in6_addr));
+        }
+    }
 
     __u32* return_value = bpf_map_lookup_elem(&blacklist_ipv6_addresses_map, &key);
 
@@ -216,13 +275,33 @@ static __always_inline int process_blacklisted_ipv6_addresses(struct PacketConte
     return 0;
 }
 
-static __always_inline int process_traffic_shaped_ipv4_addresses(struct PacketContext* packet_ctx)
+static __always_inline int process_traffic_shaped_ipv4_addresses(struct PacketContext* packet_ctx, __u32* ingress_ifindex)
 {
     struct LPMTrieKeyIPv4 key = {};
 
     key.prefix_length = 32;
 
-    key.ip_address = packet_ctx->ipv4_header->saddr;
+    if (*ingress_ifindex == in_if_index)
+    {
+        if (ip_address_key_reverse_lookup == 1) {
+            key.ip_address = packet_ctx->ipv4_header->saddr;
+        }
+
+        else {
+            key.ip_address = packet_ctx->ipv4_header->daddr;
+        }        
+    }
+
+    else
+    {
+        if (ip_address_key_reverse_lookup == 1) {
+            key.ip_address = packet_ctx->ipv4_header->daddr;
+        }
+
+        else {
+            key.ip_address = packet_ctx->ipv4_header->saddr;
+        }        
+    }
 
     struct TokenBucket* token_bucket = bpf_map_lookup_elem(&traffic_shaper_ipv4_addresses_map, &key);
 
@@ -233,13 +312,33 @@ static __always_inline int process_traffic_shaped_ipv4_addresses(struct PacketCo
     return 0;
 }
 
-static __always_inline int process_traffic_shaped_ipv6_addresses(struct PacketContext* packet_ctx)
+static __always_inline int process_traffic_shaped_ipv6_addresses(struct PacketContext* packet_ctx, __u32* ingress_ifindex)
 {
     struct LPMTrieKeyIPv6 key = {};
 
     key.prefix_length = 128;
 
-    __builtin_memcpy(&key.ip_address, &packet_ctx->ipv6_header->saddr, sizeof(struct in6_addr));
+    if (*ingress_ifindex == in_if_index)
+    {
+        if (ip_address_key_reverse_lookup == 1) {
+            __builtin_memcpy(&key.ip_address, &packet_ctx->ipv6_header->saddr, sizeof(struct in6_addr));
+        }
+
+        else {
+            __builtin_memcpy(&key.ip_address, &packet_ctx->ipv6_header->daddr, sizeof(struct in6_addr));
+        }
+    }
+
+    else
+    {
+        if (ip_address_key_reverse_lookup == 1) {
+            __builtin_memcpy(&key.ip_address, &packet_ctx->ipv6_header->daddr, sizeof(struct in6_addr));
+        }
+
+        else {
+            __builtin_memcpy(&key.ip_address, &packet_ctx->ipv6_header->saddr, sizeof(struct in6_addr));
+        }
+    }
 
     struct TokenBucket* token_bucket = bpf_map_lookup_elem(&traffic_shaper_ipv6_addresses_map, &key);
 
@@ -261,23 +360,32 @@ int xdp_main(struct xdp_md* ctx)
 
     if (packet_ctx.ipv4_header)
     {
-        if (process_blacklisted_ipv4_addresses(&packet_ctx)) {
+        if (process_blacklisted_ipv4_addresses(&packet_ctx, &ctx->ingress_ifindex)) {
             return XDP_DROP;
         }
 
-        if (process_traffic_shaped_ipv4_addresses(&packet_ctx)) {
+        if (process_traffic_shaped_ipv4_addresses(&packet_ctx, &ctx->ingress_ifindex)) {
             return XDP_DROP;
         }
     }
 
     else if (packet_ctx.ipv6_header)
     {
-        if (process_blacklisted_ipv6_addresses(&packet_ctx)) {
+        if (process_blacklisted_ipv6_addresses(&packet_ctx, &ctx->ingress_ifindex)) {
             return XDP_DROP;
         }
 
-        if (process_traffic_shaped_ipv6_addresses(&packet_ctx)) {
+        if (process_traffic_shaped_ipv6_addresses(&packet_ctx, &ctx->ingress_ifindex)) {
             return XDP_DROP;
+        }
+    }
+
+    if (tx_port_redirect_map == 1)
+    {
+        __u32 output_if_index = ctx->ingress_ifindex;
+
+        if (bpf_map_lookup_elem(&tx_port_map, &output_if_index)) {
+            return bpf_redirect_map(&tx_port_map, output_if_index, 0);
         }
     }
 
