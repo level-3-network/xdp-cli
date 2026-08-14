@@ -1,8 +1,8 @@
 ## XDP-CLI
 
-Version: 1.0.0-alpha
-License: GPL-2.0-only
-Author: level-3-network
+ - Version: 1.0.0-alpha
+ - License: GPL-2.0-only
+ - Author: level-3-network
 
 # Compiling from source
 
