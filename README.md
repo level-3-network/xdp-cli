@@ -26,6 +26,11 @@ Run the compiled program as sudo, below are a list of application arguments (som
 
 Copy and paste the `command_list.txt` file into the folder where the program is located
 
+# Features
+
+ - Blacklist (IPv4/IPv6 support with prefixes)
+ - Traffic shaper (IPv4/IPv6 support with prefixes)
+
 # Notes
 
 This is program is still in development (alpha stage), it is not fully tested, if you find any bugs please contact me
