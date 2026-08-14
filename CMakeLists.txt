@@ -11,9 +11,9 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 project(xdp-cli VERSION 1.0.0 LANGUAGES C CXX)
 
 add_executable(xdp-cli source/sdk/sdk_common.cxx
-                                source/controller/xdp.cxx
-                                source/controller/command_parser.cxx
-                                source/main.cxx)
+                       source/controller/xdp.cxx
+                       source/controller/command_parser.cxx
+                       source/main.cxx)
 
 target_include_directories(xdp-cli PRIVATE include)
 
