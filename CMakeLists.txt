@@ -17,4 +17,4 @@ add_executable(xdp-cli source/sdk/sdk_common.cxx
 
 target_include_directories(xdp-cli PRIVATE include)
 
-target_link_libraries(xdp-cli bpf elf z pthread)
+target_link_libraries(xdp-cli bpf elf pthread)
