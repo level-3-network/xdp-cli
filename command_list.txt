@@ -1,0 +1,4 @@
+# Command list
+
+# This file contains commands executed at program startup or when /reload command is used
+# Place this file in the same path as the executable
