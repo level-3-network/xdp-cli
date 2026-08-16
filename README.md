@@ -20,7 +20,7 @@ Run the `compile.sh` script and wait for it to finish.
 
 # Executing
 
-Run the compiled program as sudo, below are a list of application arguments (some are required):
+Run the compiled program as sudo, below are a list of application arguments (all required):
  - --in-interface - IN interface to attach XDP program to.
  - --out-interface - OUT interface to attach XDP program to.
 
