@@ -26,7 +26,7 @@ Run the compiled program as sudo, below are a list of application arguments (all
 
 Make a new folder where the program is located, and name it `plugins`, the program automatically loads all plugins here.
 
-Move the compiled .so library named into the `plugins` folder, this plugin registers main commands.
+Move the compiled .so library into the `plugins` folder, this plugin registers main commands.
 
 # Features
 
