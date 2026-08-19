@@ -28,7 +28,10 @@ Run the compiled program as sudo, below are a list of application arguments (all
 
  - Blacklist (Toggleable, IPv4/IPv6 support with prefixes)
  - Traffic shaper (IPv4/IPv6 support with prefixes)
+ - Interface redirection (WAN -> LAN, LAN <- WAN)
 
 # Notes
 
-This is program is still in development (alpha stage), it is not fully 100% tested (especially on IPv6 networks), if you find any bugs please contact me, or submit an issue.
+This is program is still in development (alpha stage), it is not fully 100% tested (especially on IPv6 networks).
+
+If you find any bugs please contact me, or submit an issue.
