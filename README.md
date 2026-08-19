@@ -1,6 +1,6 @@
 ## XDP-CLI
 
- - Version: 1.0.0-alpha
+ - Version: 1.0.3-alpha
  - License: GPL-2.0-only
  - Author: level-3-network
 
@@ -21,14 +21,12 @@ Run the `compile.sh` script and wait for it to finish.
 # Executing
 
 Run the compiled program as sudo, below are a list of application arguments (all required):
- - --in-interface - IN interface to attach XDP program to.
- - --out-interface - OUT interface to attach XDP program to.
-
-Copy and paste the `command_list.txt` file into the folder where the program is located.
+ - --wan-interface - WAN (internet) interface to attach XDP program to.
+ - --lan-interface - LAN (local) interface to attach XDP program to.
 
 # Features
 
- - Blacklist (IPv4/IPv6 support with prefixes)
+ - Blacklist (Toggleable, IPv4/IPv6 support with prefixes)
  - Traffic shaper (IPv4/IPv6 support with prefixes)
 
 # Notes
