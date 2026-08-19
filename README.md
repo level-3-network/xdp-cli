@@ -24,6 +24,10 @@ Run the compiled program as sudo, below are a list of application arguments (all
  - --wan-interface - WAN (internet) interface to attach XDP program to.
  - --lan-interface - LAN (local) interface to attach XDP program to.
 
+Make a new folder where the program is located, and name it `plugins`, the program automatically loads all plugins here.
+
+Move the compiled .so library named into the `plugins` folder, this plugin registers main commands.
+
 # Features
 
  - Blacklist (Toggleable, IPv4/IPv6 support with prefixes)
